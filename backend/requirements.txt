@@ -1,0 +1,20 @@
+# Flask Web Framework
+Flask==3.0.0
+Flask-CORS==4.0.0
+
+# Password Hashing
+Werkzeug==3.0.1
+
+# JWT Authentication
+PyJWT==2.8.0
+
+# SQLite (built-in with Python, no need to install)
+
+# Optional: For development
+python-dotenv==1.0.0
+
+# Optional: For PDF generation (receipts)
+# reportlab==4.0.7
+
+# Optional: For email functionality
+# Flask-Mail==0.9.1
