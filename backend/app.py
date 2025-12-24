@@ -214,7 +214,7 @@ def register_routes(app):
     @require_permission('users', 'read')
     def get_users():
         """Get all users"""
-        users = database.query_db('SELECT * FROM users')
+        users = database.query_db('SELECT * FROM users WHERE is_active = 1')
         # Remove password hashes
         users_safe = [{k: v for k, v in user.items() if k != 'password_hash'} for user in users]
         return jsonify(users_safe), 200
