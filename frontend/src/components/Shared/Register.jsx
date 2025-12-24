@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { api } from "../../utils/api"; // Changed from import api from "../../utils/api";
+import { api } from "../../utils/api";
 
-// Icons (reusing from Login for consistency)
+// Icons
 const UserCircleIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -108,15 +108,13 @@ export default function Register() {
     username: "",
     password: "",
     confirmPassword: "",
-    role: "Patient", // Default role
+    role: "Patient",
     full_name: "",
     email: "",
     phone: "",
-    // Doctor specific
     specialization: "",
     qualification: "",
     consultation_fee: "",
-    // Patient specific
     date_of_birth: "",
     blood_group: "",
     medical_history: "",
@@ -124,53 +122,208 @@ export default function Register() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const validateField = (name, value) => {
+    switch (name) {
+      case "full_name":
+        if (!/^[a-zA-Z\s]+$/.test(value) && value !== "") {
+          return "Name can only contain letters and spaces";
+        }
+        break;
+      case "username":
+        if (value && !/^[a-zA-Z0-9_]+$/.test(value)) {
+          return "Username can only contain letters, numbers, and underscores";
+        }
+        if (value.length > 0 && value.length < 3) {
+          return "Username must be at least 3 characters";
+        }
+        // Check if username is only numbers (not allowed)
+        if (value && /^[0-9_]+$/.test(value)) {
+          return "Username cannot be only numbers. Must contain at least one letter";
+        }
+        break;
+      case "email":
+        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          return "Please enter a valid email address";
+        }
+        break;
+      case "phone":
+        if (value && !/^[0-9+\-\s()]+$/.test(value)) {
+          return "Phone can only contain numbers, +, -, spaces, and parentheses";
+        }
+        break;
+      case "password":
+        if (value.length > 0 && value.length < 6) {
+          return "Password must be at least 6 characters";
+        }
+        break;
+      case "blood_group":
+        if (value && !/^(A|B|AB|O)[+-]?$/i.test(value)) {
+          return "Blood group must be A, B, AB, or O (with optional + or -)";
+        }
+        break;
+      case "consultation_fee":
+        if (value && (isNaN(value) || parseFloat(value) < 0)) {
+          return "Consultation fee must be a positive number";
+        }
+        break;
+      case "specialization":
+      case "qualification":
+        if (value && !/^[a-zA-Z\s.,-]+$/.test(value)) {
+          return "Can only contain letters, spaces, and basic punctuation";
+        }
+        break;
+    }
+    return "";
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    const validationError = validateField(name, value);
+
     setFormData((prevData) => ({
       ...prevData,
       [name]: value,
     }));
+
+    if (validationError) {
+      setError(validationError);
+    } else if (
+      name === "confirmPassword" &&
+      formData.password &&
+      value !== formData.password
+    ) {
+      setError("Passwords do not match");
+    } else {
+      setError("");
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match.");
-      setLoading(false);
+    // Validation checks
+    if (!formData.full_name.trim()) {
+      setError("Full name is required");
       return;
     }
 
-    const registrationData = { ...formData };
-    delete registrationData.confirmPassword; // Don't send confirmPassword to backend
+    if (!/^[a-zA-Z\s]+$/.test(formData.full_name)) {
+      setError("Name can only contain letters and spaces");
+      return;
+    }
 
-    // Format consultation_fee as float if doctor
-    if (registrationData.role === 'Doctor' && registrationData.consultation_fee) {
-      registrationData.consultation_fee = parseFloat(registrationData.consultation_fee);
-    } else if (registrationData.role === 'Doctor') {
-      // Ensure consultation_fee is 0 if empty for Doctor
+    if (formData.username.length < 3) {
+      setError("Username must be at least 3 characters");
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
+      setError("Username can only contain letters, numbers, and underscores");
+      return;
+    }
+
+    // Check if username is only numbers (not allowed)
+    if (/^[0-9_]+$/.test(formData.username)) {
+      setError(
+        "Username cannot be only numbers. Must contain at least one letter"
+      );
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    if (formData.phone && !/^[0-9+\-\s()]+$/.test(formData.phone)) {
+      setError("Invalid phone number format");
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    // Role-specific validation
+    if (formData.role === "Patient") {
+      if (
+        formData.blood_group &&
+        !/^(A|B|AB|O)[+-]?$/i.test(formData.blood_group)
+      ) {
+        setError("Invalid blood group format (e.g., A+, B-, O+)");
+        return;
+      }
+    }
+
+    if (formData.role === "Doctor") {
+      if (
+        formData.consultation_fee &&
+        (isNaN(formData.consultation_fee) ||
+          parseFloat(formData.consultation_fee) < 0)
+      ) {
+        setError("Consultation fee must be a positive number");
+        return;
+      }
+
+      if (
+        formData.specialization &&
+        !/^[a-zA-Z\s.,-]+$/.test(formData.specialization)
+      ) {
+        setError(
+          "Specialization can only contain letters and basic punctuation"
+        );
+        return;
+      }
+
+      if (
+        formData.qualification &&
+        !/^[a-zA-Z\s.,-]+$/.test(formData.qualification)
+      ) {
+        setError(
+          "Qualification can only contain letters and basic punctuation"
+        );
+        return;
+      }
+    }
+
+    setLoading(true);
+
+    const registrationData = { ...formData };
+    delete registrationData.confirmPassword;
+
+    if (
+      registrationData.role === "Doctor" &&
+      registrationData.consultation_fee
+    ) {
+      registrationData.consultation_fee = parseFloat(
+        registrationData.consultation_fee
+      );
+    } else if (registrationData.role === "Doctor") {
       registrationData.consultation_fee = 0.0;
     }
 
-    // Remove role-specific fields not relevant to the selected role
-    if (registrationData.role === 'Patient') {
+    if (registrationData.role === "Patient") {
       delete registrationData.specialization;
       delete registrationData.qualification;
       delete registrationData.consultation_fee;
-    } else if (registrationData.role === 'Doctor') {
+    } else if (registrationData.role === "Doctor") {
       delete registrationData.date_of_birth;
       delete registrationData.blood_group;
       delete registrationData.medical_history;
     }
 
-
     try {
       const response = await api.post("/auth/register", registrationData);
       if (response.status === 201) {
-        // Optionally log the user in directly or redirect to login
-        navigate("/login"); // Redirect to login page after successful registration
+        navigate("/login");
       }
     } catch (err) {
       setError(err.message || "Registration failed.");
@@ -187,7 +340,7 @@ export default function Register() {
           Create an Account
         </h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* General Fields */}
+          {/* Full Name */}
           <div>
             <label
               htmlFor="full_name"
@@ -212,6 +365,8 @@ export default function Register() {
               />
             </div>
           </div>
+
+          {/* Username */}
           <div>
             <label
               htmlFor="username"
@@ -236,6 +391,8 @@ export default function Register() {
               />
             </div>
           </div>
+
+          {/* Email */}
           <div>
             <label
               htmlFor="email"
@@ -260,6 +417,8 @@ export default function Register() {
               />
             </div>
           </div>
+
+          {/* Phone */}
           <div>
             <label
               htmlFor="phone"
@@ -283,6 +442,8 @@ export default function Register() {
               />
             </div>
           </div>
+
+          {/* Password */}
           <div>
             <label
               htmlFor="password"
@@ -307,6 +468,8 @@ export default function Register() {
               />
             </div>
           </div>
+
+          {/* Confirm Password */}
           <div>
             <label
               htmlFor="confirmPassword"
@@ -412,7 +575,7 @@ export default function Register() {
                   Consultation Fee
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                     $
                   </div>
                   <input
@@ -455,7 +618,6 @@ export default function Register() {
                     name="date_of_birth"
                     value={formData.date_of_birth}
                     onChange={handleChange}
-                    placeholder="Date of Birth"
                     className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-200 ease-in-out"
                     aria-label="Date of Birth"
                   />
@@ -470,7 +632,7 @@ export default function Register() {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <UserIcon /> {/* Placeholder icon */}
+                    <UserIcon />
                   </div>
                   <input
                     type="text"
@@ -505,11 +667,14 @@ export default function Register() {
             </>
           )}
 
+          {/* Error Message */}
           {error && (
             <p className="text-red-600 text-sm bg-red-50 p-3 rounded-md border border-red-200 animate-pulse">
               {error}
             </p>
           )}
+
+          {/* Submit Button */}
           <button
             type="submit"
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-200 ease-in-out disabled:bg-blue-400 disabled:cursor-not-allowed"
@@ -518,6 +683,8 @@ export default function Register() {
             {loading ? "Registering..." : "Register"}
           </button>
         </form>
+
+        {/* Login Link */}
         <p className="mt-6 text-center text-gray-500 text-sm">
           Already have an account?{" "}
           <a
