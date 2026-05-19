@@ -187,7 +187,9 @@ export default function UserManagement() {
             >
               <option value="Patient">Patient</option>
               <option value="Doctor">Doctor</option>
-              <option value="Admin">Admin</option>
+              {currentUser && currentUser.role === "Admin" && (
+                <option value="Sub-Admin">Sub-Admin</option>
+              )}
             </select>
             <div>
               <button

@@ -245,6 +245,10 @@ def register_routes(app):
         # Validate role
         if data['role'] not in app.config['ROLES']:
             return jsonify({'error': f'Invalid role. Must be one of: {app.config["ROLES"]}'}), 400
+
+        # Security check: Sub-Admins cannot create other Sub-Admin accounts
+        if g.current_user['role'] == 'Sub-Admin' and data['role'] == 'Sub-Admin':
+            return jsonify({'error': 'Sub-Admins cannot create other Sub-Admin accounts.'}), 403
         
         # Check if username exists
         existing = database.get_user_by_username(data['username'])
@@ -327,6 +331,69 @@ def register_routes(app):
         
         database.execute_db('UPDATE users SET is_active = 0 WHERE user_id = ?', [user_id])
         return jsonify({'message': 'User deleted'}), 200
+    
+    
+    # ========================================================================
+    # PATIENT ROUTES (Access Controlled)
+    # ========================================================================
+    @app.route('/api/patients', methods=['GET'])
+    @login_required
+    @require_permission('patients', 'read') # Doctors, Admins, Sub-Admins need 'patients', 'read'
+    def get_patients():
+        """
+        Get patient records based on user role and query parameters.
+        Admins/Sub-Admins/Doctors can query all patients or specific ones.
+        Patients can only view their own record.
+        Can filter by user_id (from 'users' table).
+        """
+        user = g.current_user
+        user_id_filter = request.args.get('user_id')
+
+        # If a specific user_id is requested, handle it first
+        if user_id_filter:
+            # Patients can only view their own record if filtered by user_id
+            if user['role'] == 'Patient' and str(user['user_id']) != user_id_filter:
+                return jsonify({'error': 'Permission denied to view other patient records'}), 403
+            
+            # Admins, Sub-Admins, Doctors can view any patient by user_id
+            # Retrieve detailed patient info including user details
+            patient_data = database.query_db(
+                '''SELECT p.patient_id, u.user_id, u.username, u.full_name, u.email, u.phone,
+                          p.date_of_birth, p.blood_group, p.medical_history
+                   FROM patients p
+                   JOIN users u ON p.user_id = u.user_id
+                   WHERE u.user_id = ?''',
+                [user_id_filter],
+                one=True
+            )
+            if patient_data:
+                return jsonify(patient_data), 200 # Return single patient object
+            else:
+                return jsonify({'error': 'Patient not found'}), 404
+
+        # For the list view (no user_id filter)
+        if user['role'] in ['Admin', 'Sub-Admin', 'Doctor']:
+            # Admins, Sub-Admins, Doctors can see all patients
+            patients_data = database.query_db(
+                '''SELECT p.patient_id, u.user_id, u.username, u.full_name, u.email, u.phone,
+                          p.date_of_birth, p.blood_group, p.medical_history
+                   FROM patients p
+                   JOIN users u ON p.user_id = u.user_id'''
+            )
+        elif user['role'] == 'Patient':
+            # Patients can only see their own record in a list
+            patients_data = database.query_db(
+                '''SELECT p.patient_id, u.user_id, u.username, u.full_name, u.email, u.phone,
+                          p.date_of_birth, p.blood_group, p.medical_history
+                   FROM patients p
+                   JOIN users u ON p.user_id = u.user_id
+                   WHERE u.user_id = ?''',
+                [user['user_id']]
+            )
+        else:
+            return jsonify({'error': 'Permission denied to access patient list'}), 403
+
+        return jsonify(patients_data), 200
     
     
     # ========================================================================
@@ -819,6 +886,10 @@ def register_routes(app):
         permission = database.query_db('SELECT * FROM permissions WHERE permission_id = ?', [permission_id], one=True)
         if not permission:
             return jsonify({'error': 'Permission not found'}), 404
+            
+        # Security check: Sub-Admins cannot modify Admin or Sub-Admin permissions
+        if g.current_user['role'] == 'Sub-Admin' and permission['role'] in ['Admin', 'Sub-Admin']:
+            return jsonify({'error': 'Sub-Admins cannot modify permissions for Admin or other Sub-Admin roles.'}), 403
         
         allowed_fields = ['can_create', 'can_read', 'can_update', 'can_delete']
         updates = {k: v for k, v in data.items() if k in allowed_fields}
@@ -895,6 +966,8 @@ def register_routes(app):
             }
         else:  # Patient
             patient = database.get_patient_by_user_id(user['user_id'])
+            if not patient:
+                return jsonify({'error': 'Patient profile not found for this user.'}), 404
             stats = {
                 'upcoming_appointments': database.query_db(
                     "SELECT COUNT(*) as count FROM appointments WHERE patient_id = ? AND appointment_date >= DATE('now') AND status = 'Scheduled'",

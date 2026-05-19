@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { api } from "../../utils/api";
+import { useAuth } from "../../context/AuthContext"; // Import useAuth
 
 export default function PermissionsDashboard() {
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updatingPermId, setUpdatingPermId] = useState(null);
+  const { user } = useAuth(); // Get the current user from AuthContext
 
   useEffect(() => {
     fetchPermissions();
@@ -48,6 +50,16 @@ export default function PermissionsDashboard() {
     }
   };
 
+  // Filter permissions based on user role
+  const filteredPermissions = permissions.filter((perm) => {
+    if (user && user.role === "Sub-Admin") {
+      // Sub-admins can only see/modify Doctor and Patient permissions
+      return perm.role === "Doctor" || perm.role === "Patient";
+    }
+    // Admins see all permissions
+    return true;
+  });
+
   if (loading) {
     return <div className="text-center mt-4">Loading permissions...</div>;
   }
@@ -73,7 +85,7 @@ export default function PermissionsDashboard() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {permissions.map((perm) => (
+            {filteredPermissions.map((perm) => ( // Use filteredPermissions here
               <tr key={perm.permission_id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{perm.role}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{perm.resource}</td>

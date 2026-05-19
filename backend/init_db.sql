@@ -22,7 +22,7 @@ CREATE TABLE users (
     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
     username VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(20) NOT NULL CHECK(role IN ('Admin', 'Doctor', 'Patient')),
+    role VARCHAR(20) NOT NULL CHECK(role IN ('Admin', 'Doctor', 'Patient', 'Sub-Admin')),
     full_name VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     phone VARCHAR(15),
@@ -126,7 +126,7 @@ CREATE TABLE receipts (
 -- ============================================================================
 CREATE TABLE permissions (
     permission_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    role VARCHAR(20) NOT NULL CHECK(role IN ('Admin', 'Doctor', 'Patient')),
+    role VARCHAR(20) NOT NULL CHECK(role IN ('Admin', 'Doctor', 'Patient', 'Sub-Admin')),
     resource VARCHAR(50) NOT NULL,
     can_create BOOLEAN DEFAULT 0,
     can_read BOOLEAN DEFAULT 0,
@@ -201,13 +201,24 @@ INSERT INTO permissions (role, resource, can_create, can_read, can_update, can_d
 INSERT INTO permissions (role, resource, can_create, can_read, can_update, can_delete) VALUES
 ('Doctor', 'appointments', 0, 1, 1, 0),  -- Can read and update their appointments
 ('Doctor', 'schedules', 1, 1, 1, 1),     -- Full control over their schedules
-('Doctor', 'billings', 0, 1, 0, 0);      -- Can only view billings
+('Doctor', 'billings', 0, 1, 0, 0),      -- Can only view billings
+('Doctor', 'patients', 0, 1, 0, 0);      -- Can read patient records
 
 -- Patient Permissions (Self-Service)
 INSERT INTO permissions (role, resource, can_create, can_read, can_update, can_delete) VALUES
 ('Patient', 'appointments', 1, 1, 1, 1), -- Full control over their appointments
 ('Patient', 'billings', 0, 1, 0, 0),     -- Can only view their billings
 ('Patient', 'receipts', 0, 1, 0, 0);     -- Can only view their receipts
+
+-- Sub-Admin Permissions (Initially Restricted)
+INSERT INTO permissions (role, resource, can_create, can_read, can_update, can_delete) VALUES
+
+('Sub-Admin', 'users', 1, 1, 1, 1),
+('Sub-Admin', 'appointments', 1, 1, 1, 1),
+('Sub-Admin', 'schedules', 1, 1, 1, 1),
+('Sub-Admin', 'billings', 1, 1, 1, 1),
+('Sub-Admin', 'receipts', 1, 1, 1, 1),
+('Sub-Admin', 'permissions', 1, 1, 1, 1);    -- Can only read billings
 
 -- Insert Sample Schedule for Dr. Smith
 INSERT INTO schedules (doctor_id, day_of_week, start_time, end_time, is_available) VALUES
@@ -223,3 +234,6 @@ INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_t
 
 INSERT INTO billings (appointment_id, patient_id, amount, services_description, payment_status) VALUES
 (1, 1, 2500.00, 'Consultation - Cardiology with ECG', 'Pending');
+
+INSERT INTO users (full_name, username, password_hash, role, email, phone) VALUES
+('Ghufran', 'Ghufran123', 'ghufran123', "Patient",'ghufran123@gmail.com',03001234567);

@@ -9,7 +9,7 @@ class Config:
     SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(BASE_DIR, 'hospital.db')}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DEBUG = True
-    ROLES = ['Admin', 'Doctor', 'Patient']
+    ROLES = ['Admin', 'Doctor', 'Patient', 'Sub-Admin']
     DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     CORS_ORIGINS = ["http://localhost:5173"]  # React frontend
     JWT_EXPIRATION_HOURS = 24

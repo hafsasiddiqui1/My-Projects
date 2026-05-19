@@ -136,3 +136,4 @@ def log_permission_change(admin_user_id, action, role, resource, permission_type
            VALUES (?, ?, ?, ?, ?)''',
         [admin_user_id, action, role, resource, permission_type]
     )
+

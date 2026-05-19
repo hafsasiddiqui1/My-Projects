@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 const getNavLinks = (role) => {
   switch (role) {
     case "Admin":
+    case "Sub-Admin": // Sub-admins get the same navigation links as Admins for now
       return [
         { to: "/admin", text: "User Management" },
         { to: "/admin/permissions", text: "Permissions" },
